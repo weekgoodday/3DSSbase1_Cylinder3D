@@ -1,0 +1,15 @@
+train_cylinder_asym.py
+Namespace(config_path='config/semantickitti.yaml')
+[480 360  32]
+Traceback (most recent call last):
+  File "/home/zht/github_play/3DSSbase1/train_cylinder_asym.py", line 167, in <module>
+    main(args)
+  File "/home/zht/github_play/3DSSbase1/train_cylinder_asym.py", line 65, in main
+    train_dataset_loader, val_dataset_loader = data_builder.build(dataset_config,
+  File "/home/zht/github_play/3DSSbase1/builder/data_builder.py", line 56, in build
+    train_dataset_loader = torch.utils.data.DataLoader(dataset=train_dataset,
+  File "/home/zht/anaconda3/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 268, in __init__
+    sampler = RandomSampler(dataset, generator=generator)
+  File "/home/zht/anaconda3/lib/python3.9/site-packages/torch/utils/data/sampler.py", line 102, in __init__
+    raise ValueError("num_samples should be a positive integer "
+ValueError: num_samples should be a positive integer value, but got num_samples=0

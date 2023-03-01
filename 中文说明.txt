@@ -1,0 +1,2 @@
+在Cylinder3D 2020版的基础上直接修改
+最终阴差阳错，在hsc的帮助下配好了base环境，python3.9 pytorch 1.10.0_cu113 torchscatter去官网找的适配的2.0.9 torchvision 0.11.0+cu113 应该在zzy服务器下载了cudatoolkit cudnn 注意pytorch的cudatoolkit是不完整的，见https://blog.csdn.net/qq_41094058/article/details/116207333
