@@ -29,7 +29,7 @@ def main(args):
 
     config_path = args.config_path
 
-    configs = load_config_data(config_path)
+    configs = load_config_data(config_path) #from yaml file load params
 
     dataset_config = configs['dataset_params']
     train_dataloader_config = configs['train_data_loader']
