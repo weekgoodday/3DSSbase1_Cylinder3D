@@ -27,6 +27,8 @@ warnings.filterwarnings("ignore")
 def main(args):
     pytorch_device = torch.device('cuda:0')
 
+
+sssss
     config_path = args.config_path
 
     configs = load_config_data(config_path) #from yaml file load params
@@ -159,7 +161,7 @@ def main(args):
 if __name__ == '__main__':
     # Training settings
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('-y', '--config_path', default='config/semantickitti.yaml')
+    parser.add_argument('-y', '--config_path', default='/home/zht/github_play/3DSSbase1/config/semantickitti.yaml')
     args = parser.parse_args()
 
     print(' '.join(sys.argv))
