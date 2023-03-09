@@ -2,3 +2,4 @@ __pycache__/
 model_save_dir/*
 model_load_dir/*
 wandb/
+logs_dir/*
