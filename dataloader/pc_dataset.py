@@ -36,7 +36,8 @@ class SemKITTI_demo(data.Dataset):
         self.return_ref = return_ref
 
         self.im_idx = []
-        self.im_idx += absoluteFilePaths(data_path)
+
+        self.im_idx += absoluteFilePaths(data_path) #这句话 遍历全部子文件了 所以只选定一个数据集的velodyne或者labels 
         self.label_idx = []
         if self.imageset == 'val':
             print(demo_label_path)

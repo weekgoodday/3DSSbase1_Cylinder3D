@@ -23,12 +23,12 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+import wandb
+wandb.init(project="cylinder3d",name="trainc")
 
 def main(args):
     pytorch_device = torch.device('cuda:0')
 
-
-sssss
     config_path = args.config_path
 
     configs = load_config_data(config_path) #from yaml file load params
@@ -68,63 +68,23 @@ sssss
                                                                   train_dataloader_config,
                                                                   val_dataloader_config,
                                                                   grid_size=grid_size)
-
+    wandb.watch(my_model)
     # training
     epoch = 0
     best_val_miou = 0
     my_model.train()
     global_iter = 0
     check_iter = train_hypers['eval_every_n_steps']
-
+    wandb_log={}
     while epoch < train_hypers['max_num_epochs']:
         loss_list = []
         pbar = tqdm(total=len(train_dataset_loader))
-        time.sleep(10)
+        # time.sleep(10)
         # lr_scheduler.step(epoch)
+        my_model.train()
         for i_iter, (_, train_vox_label, train_grid, _, train_pt_fea) in enumerate(train_dataset_loader):
-            if global_iter % check_iter == 0 and epoch >= 1:
-                my_model.eval()
-                hist_list = []
-                val_loss_list = []
-                with torch.no_grad():
-                    for i_iter_val, (_, val_vox_label, val_grid, val_pt_labs, val_pt_fea) in enumerate(
-                            val_dataset_loader):
-
-                        val_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device) for i in
-                                          val_pt_fea]
-                        val_grid_ten = [torch.from_numpy(i).to(pytorch_device) for i in val_grid]
-                        val_label_tensor = val_vox_label.type(torch.LongTensor).to(pytorch_device)
-                        val_batch_size = val_vox_label.shape[0]
-                        predict_labels = my_model(val_pt_fea_ten, val_grid_ten, val_batch_size)
-                        # aux_loss = loss_fun(aux_outputs, point_label_tensor)
-                        loss = lovasz_softmax(torch.nn.functional.softmax(predict_labels).detach(), val_label_tensor,
-                                              ignore=0) + loss_func(predict_labels.detach(), val_label_tensor)
-                        predict_labels = torch.argmax(predict_labels, dim=1)
-                        predict_labels = predict_labels.cpu().detach().numpy()
-                        for count, i_val_grid in enumerate(val_grid):
-                            hist_list.append(fast_hist_crop(predict_labels[
-                                                                count, val_grid[count][:, 0], val_grid[count][:, 1],
-                                                                val_grid[count][:, 2]], val_pt_labs[count],
-                                                            unique_label))
-                        val_loss_list.append(loss.detach().cpu().numpy())
-                my_model.train()
-                iou = per_class_iu(sum(hist_list))
-                print('Validation per class iou: ')
-                for class_name, class_iou in zip(unique_label_str, iou):
-                    print('%s : %.2f%%' % (class_name, class_iou * 100))
-                val_miou = np.nanmean(iou) * 100
-                del val_vox_label, val_grid, val_pt_fea, val_grid_ten
-
-                # save model if performance is improved
-                if best_val_miou < val_miou:
-                    best_val_miou = val_miou
-                    torch.save(my_model.state_dict(), model_save_path)
-
-                print('Current val miou is %.3f while the best val miou is %.3f' %
-                      (val_miou, best_val_miou))
-                print('Current val loss is %.3f' %
-                      (np.mean(val_loss_list)))
-
+            # if(i_iter==100):
+            #     break          
             train_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device) for i in train_pt_fea]
             # train_grid_ten = [torch.from_numpy(i[:,:2]).to(pytorch_device) for i in train_grid]
             train_vox_ten = [torch.from_numpy(i).to(pytorch_device) for i in train_grid]
@@ -156,6 +116,59 @@ sssss
                     print('loss error')
         pbar.close()
         epoch += 1
+        wandb_log['loss']=np.mean(loss_list)
+        #wandb_log['acc']=
+        #wandb_log['IoU']=
+
+        my_model.eval() #zht: every epoch validate
+        print("start validation...")
+        hist_list = []
+        val_loss_list = []
+        pbar = tqdm(total=len(val_dataset_loader))
+        with torch.no_grad():
+            for i_iter_val, (_, val_vox_label, val_grid, val_pt_labs, val_pt_fea) in enumerate(
+                    val_dataset_loader):
+                # if(i_iter_val==100):
+                #     break
+                val_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device) for i in
+                                    val_pt_fea]
+                val_grid_ten = [torch.from_numpy(i).to(pytorch_device) for i in val_grid]
+                val_label_tensor = val_vox_label.type(torch.LongTensor).to(pytorch_device)
+                val_batch_size = val_vox_label.shape[0]
+                predict_labels = my_model(val_pt_fea_ten, val_grid_ten, val_batch_size)
+                # aux_loss = loss_fun(aux_outputs, point_label_tensor)
+                loss = lovasz_softmax(torch.nn.functional.softmax(predict_labels).detach(), val_label_tensor,
+                                        ignore=0) + loss_func(predict_labels.detach(), val_label_tensor)
+                predict_labels = torch.argmax(predict_labels, dim=1)
+                predict_labels = predict_labels.cpu().detach().numpy()
+                for count, i_val_grid in enumerate(val_grid):
+                    hist_list.append(fast_hist_crop(predict_labels[
+                                                        count, val_grid[count][:, 0], val_grid[count][:, 1],
+                                                        val_grid[count][:, 2]], val_pt_labs[count],
+                                                    unique_label))
+                val_loss_list.append(loss.detach().cpu().numpy())
+                pbar.update(1)
+            pbar.close()
+        
+        iou = per_class_iu(sum(hist_list))
+        print('Validation per class iou: ')
+        for class_name, class_iou in zip(unique_label_str, iou):
+            print('%s : %.2f%%' % (class_name, class_iou * 100))
+        val_miou = np.nanmean(iou) * 100
+        del val_vox_label, val_grid, val_pt_fea, val_grid_ten
+
+        # save model if performance is improved
+        if best_val_miou < val_miou:
+            best_val_miou = val_miou
+            torch.save(my_model.state_dict(), model_save_path)
+
+        print('Current val miou is %.3f while the best val miou is %.3f' %
+                (val_miou, best_val_miou))
+        print('Current val loss is %.3f' %
+                (np.mean(val_loss_list)))
+        wandb_log['val_IoU']=val_miou
+        #wandb_log['val_acc']=
+        wandb.log(wandb_log)
 
 
 if __name__ == '__main__':

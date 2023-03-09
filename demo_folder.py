@@ -27,9 +27,9 @@ warnings.filterwarnings("ignore")
 
 
 def build_dataset(dataset_config,
-                  data_dir,
+                  data_dir, #/home/zht/Datasets/Semantic
                   grid_size=[480, 360, 32],
-                  demo_label_dir=None):
+                  demo_label_dir=None): #有label就val
 
     if demo_label_dir == '':
         imageset = "demo"
@@ -40,9 +40,9 @@ def build_dataset(dataset_config,
     SemKITTI_demo = get_pc_model_class('SemKITTI_demo')
 
     demo_pt_dataset = SemKITTI_demo(data_dir, imageset=imageset,
-                              return_ref=True, label_mapping=label_mapping, demo_label_path=demo_label_dir)
+                              return_ref=True, label_mapping=label_mapping, demo_label_path=demo_label_dir) #SemKITTI_demo类
 
-    demo_dataset = get_model_class(dataset_config['dataset_type'])(
+    demo_dataset = get_model_class(dataset_config['dataset_type'])( #cylinder_dataset类
         demo_pt_dataset,
         grid_size=grid_size,
         fixed_volume_space=dataset_config['fixed_volume_space'],
@@ -52,7 +52,7 @@ def build_dataset(dataset_config,
     )
     demo_dataset_loader = torch.utils.data.DataLoader(dataset=demo_dataset,
                                                      batch_size=1,
-                                                     collate_fn=collate_fn_BEV,
+                                                     collate_fn=collate_fn_BEV, #BEV？
                                                      shuffle=False,
                                                      num_workers=4)
 
@@ -140,10 +140,10 @@ def main(args):
 if __name__ == '__main__':
     # Training settings
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('-y', '--config_path', default='config/semantickitti.yaml')
-    parser.add_argument('--demo-folder', type=str, default='', help='path to the folder containing demo lidar scans', required=True)
-    parser.add_argument('--save-folder', type=str, default='', help='path to save your result', required=True)
-    parser.add_argument('--demo-label-folder', type=str, default='', help='path to the folder containing demo labels')
+    parser.add_argument('-y', '--config_path', default='/home/zht/github_play/3DSSbase1/config/semantickitti.yaml')
+    parser.add_argument('--demo-folder', type=str, default='/home/zht/Datasets/Semantic/08/velodyne', help='path to the folder containing demo lidar scans', required=False)
+    parser.add_argument('--save-folder', type=str, default='/home/zht/cylinder3d_results', help='path to save your result', required=False)
+    parser.add_argument('--demo-label-folder', type=str, default='/home/zht/Datasets/Semantic/08/labels', help='path to the folder containing demo labels')
     args = parser.parse_args()
 
     print(' '.join(sys.argv))
