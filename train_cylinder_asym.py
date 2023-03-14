@@ -11,27 +11,23 @@ import numpy as np
 import torch
 import torch.optim as optim
 from tqdm import tqdm
-
 from utils.metric_util import per_class_iu, fast_hist_crop
 from dataloader.pc_dataset import get_SemKITTI_label_name
 from builder import data_builder, model_builder, loss_builder
 from config.config import load_config_data
-
 from utils.load_save_util import load_checkpoint
-
 import warnings
-
-warnings.filterwarnings("ignore")
-
 import wandb
-wandb.init(project="cylinder3d",name="trainc")
+warnings.filterwarnings("ignore")
+wandb.init(project="cylinder3d", name="trainc")
+
 
 def main(args):
     pytorch_device = torch.device('cuda:0')
 
     config_path = args.config_path
 
-    configs = load_config_data(config_path) #from yaml file load params
+    configs = load_config_data(config_path)  # from yaml file load params
 
     dataset_config = configs['dataset_params']
     train_dataloader_config = configs['train_data_loader']
@@ -75,7 +71,7 @@ def main(args):
     my_model.train()
     global_iter = 0
     check_iter = train_hypers['eval_every_n_steps']
-    wandb_log={}
+    wandb_log = {}
     while epoch < train_hypers['max_num_epochs']:
         loss_list = []
         pbar = tqdm(total=len(train_dataset_loader))
@@ -116,11 +112,11 @@ def main(args):
                     print('loss error')
         pbar.close()
         epoch += 1
-        wandb_log['loss']=np.mean(loss_list)
-        #wandb_log['acc']=
-        #wandb_log['IoU']=
+        wandb_log['loss'] = np.mean(loss_list)
+        # wandb_log['acc']=
+        # wandb_log['IoU']=
 
-        my_model.eval() #zht: every epoch validate
+        my_model.eval()  # zht: every epoch validate
         print("start validation...")
         hist_list = []
         val_loss_list = []
@@ -131,14 +127,14 @@ def main(args):
                 # if(i_iter_val==100):
                 #     break
                 val_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device) for i in
-                                    val_pt_fea]
+                                  val_pt_fea]
                 val_grid_ten = [torch.from_numpy(i).to(pytorch_device) for i in val_grid]
                 val_label_tensor = val_vox_label.type(torch.LongTensor).to(pytorch_device)
                 val_batch_size = val_vox_label.shape[0]
                 predict_labels = my_model(val_pt_fea_ten, val_grid_ten, val_batch_size)
                 # aux_loss = loss_fun(aux_outputs, point_label_tensor)
                 loss = lovasz_softmax(torch.nn.functional.softmax(predict_labels).detach(), val_label_tensor,
-                                        ignore=0) + loss_func(predict_labels.detach(), val_label_tensor)
+                                      ignore=0) + loss_func(predict_labels.detach(), val_label_tensor)
                 predict_labels = torch.argmax(predict_labels, dim=1)
                 predict_labels = predict_labels.cpu().detach().numpy()
                 for count, i_val_grid in enumerate(val_grid):
@@ -149,7 +145,7 @@ def main(args):
                 val_loss_list.append(loss.detach().cpu().numpy())
                 pbar.update(1)
             pbar.close()
-        
+
         iou = per_class_iu(sum(hist_list))
         print('Validation per class iou: ')
         for class_name, class_iou in zip(unique_label_str, iou):
@@ -163,11 +159,11 @@ def main(args):
             torch.save(my_model.state_dict(), model_save_path)
 
         print('Current val miou is %.3f while the best val miou is %.3f' %
-                (val_miou, best_val_miou))
+              (val_miou, best_val_miou))
         print('Current val loss is %.3f' %
-                (np.mean(val_loss_list)))
-        wandb_log['val_IoU']=val_miou
-        #wandb_log['val_acc']=
+              (np.mean(val_loss_list)))
+        wandb_log['val_IoU'] = val_miou
+        # wandb_log['val_acc']=
         wandb.log(wandb_log)
 
 
