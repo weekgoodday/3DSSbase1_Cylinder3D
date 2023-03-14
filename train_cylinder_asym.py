@@ -19,7 +19,9 @@ from utils.load_save_util import load_checkpoint
 import warnings
 import wandb
 warnings.filterwarnings("ignore")
-wandb.init(project="cylinder3d", name="trainc")
+wandb_open=False
+if(wandb_open):
+    wandb.init(project="cylinder3d", name="trainc")
 
 
 def main(args):
@@ -64,7 +66,8 @@ def main(args):
                                                                   train_dataloader_config,
                                                                   val_dataloader_config,
                                                                   grid_size=grid_size)
-    wandb.watch(my_model)
+    if(wandb_open):
+        wandb.watch(my_model)
     # training
     epoch = 0
     best_val_miou = 0
@@ -164,7 +167,8 @@ def main(args):
               (np.mean(val_loss_list)))
         wandb_log['val_IoU'] = val_miou
         # wandb_log['val_acc']=
-        wandb.log(wandb_log)
+        if(wandb_open):
+            wandb.log(wandb_log)
 
 
 if __name__ == '__main__':
