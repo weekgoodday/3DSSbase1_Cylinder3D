@@ -88,9 +88,20 @@ def main(args):
             # train_grid_ten = [torch.from_numpy(i[:,:2]).to(pytorch_device) for i in train_grid]
             train_vox_ten = [torch.from_numpy(i).to(pytorch_device) for i in train_grid]
             point_label_tensor = train_vox_label.type(torch.LongTensor).to(pytorch_device)
-            train_batch_size = train_vox_label.shape[0]
+            train_batch_size = train_vox_label.shape[0]  # 在config中设置，2
             # forward + backward + optimize
-            outputs = my_model(train_pt_fea_ten, train_vox_ten, train_batch_size)
+            # print(train_pt_fea_ten)
+            # print(train_vox_ten)
+            # print("forward parameter1 type len [0]shape:",type(train_pt_fea_ten))
+            # print(len(train_pt_fea_ten))
+            # print(train_pt_fea_ten[0].shape)
+            # print(train_pt_fea_ten[1].shape)
+            # print("forward para2: type and shape,",type(train_vox_ten))
+            # print(len(train_vox_ten))
+            # print(train_vox_ten[0].shape)
+            # print(train_vox_ten[1].shape)
+            outputs = my_model(train_pt_fea_ten, train_vox_ten, train_batch_size)  # train_pt_fea_ten和train_vox_ten都是长度为2的list，且两个元素都是tensor，因为每次随机，
+            # 确定的是train_pt_fea_ten元素1 shape为[N1,9] 元素2 shape为[N2,9]; train_vox_ten元素1 shape为[N1,3];元素2 shape为[N2,3]
             loss = lovasz_softmax(torch.nn.functional.softmax(outputs), point_label_tensor, ignore=0) + loss_func(
                 outputs, point_label_tensor)
             loss.backward()

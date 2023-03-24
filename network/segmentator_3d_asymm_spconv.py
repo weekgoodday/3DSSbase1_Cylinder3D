@@ -71,22 +71,25 @@ class ResContextBlock(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
-        shortcut = self.conv1(x)
-        shortcut.features = self.act1(shortcut.features)
-        shortcut.features = self.bn0(shortcut.features)
+        # print(type(x))  # 果然是<class 'spconv.SparseConvTensor'> 
 
-        shortcut = self.conv1_2(shortcut)
-        shortcut.features = self.act1_2(shortcut.features)
+        shortcut = self.conv1(x)  # conv1 是由spconv.SubMConv3d 作为基本组成的 conv1x3
+        # print(type(shortcut))
+        shortcut.features = self.act1(shortcut.features)  # LeakyReLU必须Tensor了
+        shortcut.features = self.bn0(shortcut.features)  # BN也必须Tensor
+
+        shortcut = self.conv1_2(shortcut)  # conv3x1
+        shortcut.features = self.act1_2(shortcut.features)  # 还是LeakyReLU+BN
         shortcut.features = self.bn0_2(shortcut.features)
 
-        resA = self.conv2(x)
-        resA.features = self.act2(resA.features)
+        resA = self.conv2(x)  #第二条从输入出发的路径 先conv3x1
+        resA.features = self.act2(resA.features)  
         resA.features = self.bn1(resA.features)
 
-        resA = self.conv3(resA)
+        resA = self.conv3(resA)  # 再conv1x3
         resA.features = self.act3(resA.features)
         resA.features = self.bn2(resA.features)
-        resA.features = resA.features + shortcut.features
+        resA.features = resA.features + shortcut.features  # 最终Tensor直接相加
 
         return resA
 
@@ -115,7 +118,7 @@ class ResBlock(nn.Module):
         self.bn2 = nn.BatchNorm1d(out_filters)
 
         if pooling:
-            if height_pooling:
+            if height_pooling:  # 几个height_pooling都是False
                 self.pool = spconv.SparseConv3d(out_filters, out_filters, kernel_size=3, stride=2,
                                                 padding=1, indice_key=indice_key, bias=False)
             else:
@@ -148,9 +151,9 @@ class ResBlock(nn.Module):
 
         resA.features = resA.features + shortcut.features
 
-        if self.pooling:
-            resB = self.pool(resA)
-            return resB, resA
+        if self.pooling:  # 之前和ResContextBlock一模一样 pooling几个Block都是True
+            resB = self.pool(resA)  # 都是3*3*3 stride除了height是2
+            return resB, resA  # 返回pooling之后的和与之前一样操作的
         else:
             return resA
 
@@ -179,7 +182,7 @@ class UpBlock(nn.Module):
         self.up_subm = spconv.SparseInverseConv3d(out_filters, out_filters, kernel_size=3, indice_key=up_key,
                                                   bias=False)
 
-        self.weight_initialization()
+        self.weight_initialization()  #这里的初始化竟然只是weight全1 bias全0
 
     def weight_initialization(self):
         for m in self.modules():
@@ -188,24 +191,24 @@ class UpBlock(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def forward(self, x, skip):
-        upA = self.trans_dilao(x)
+        upA = self.trans_dilao(x)  # conv3x3
         upA.features = self.trans_act(upA.features)
         upA.features = self.trans_bn(upA.features)
 
         ## upsample
-        upA = self.up_subm(upA)
+        upA = self.up_subm(upA)  # 可以想象和inverseconv一个原理
 
-        upA.features = upA.features + skip.features
+        upA.features = upA.features + skip.features  # 上采样后加直连的特征
 
-        upE = self.conv1(upA)
+        upE = self.conv1(upA)  # conv1x3
         upE.features = self.act1(upE.features)
         upE.features = self.bn1(upE.features)
 
-        upE = self.conv2(upE)
+        upE = self.conv2(upE)  # conv3x1
         upE.features = self.act2(upE.features)
         upE.features = self.bn2(upE.features)
 
-        upE = self.conv3(upE)
+        upE = self.conv3(upE)  # conv3x3
         upE.features = self.act3(upE.features)
         upE.features = self.bn3(upE.features)
 
@@ -275,30 +278,43 @@ class Asymm_3d_spconv(nn.Module):
         self.upBlock2 = UpBlock(8 * init_size, 4 * init_size, indice_key="up2", up_key="down3")
         self.upBlock3 = UpBlock(4 * init_size, 2 * init_size, indice_key="up3", up_key="down2")
 
-        self.ReconNet = ReconBlock(2 * init_size, 2 * init_size, indice_key="recon")
+        self.ReconNet = ReconBlock(2 * init_size, 2 * init_size, indice_key="recon")  # 这个是DDCM
 
         self.logits = spconv.SubMConv3d(4 * init_size, nclasses, indice_key="logit", kernel_size=3, stride=1, padding=1,
                                         bias=True)
 
     def forward(self, voxel_features, coors, batch_size):
         # x = x.contiguous()
-        coors = coors.int()
+        coors = coors.int()  # [m,4]
         # import pdb
         # pdb.set_trace()
         ret = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape,
                                       batch_size)
+        # print(type(ret))  # <class 'spconv.SparseConvTensor'>
+        # print(ret.indices)  # 就是coors
+        # print(ret.features)  # [m,16]
+        # print(ret.features.shape)
         ret = self.downCntx(ret)
-        down1c, down1b = self.resBlock2(ret)
+        # 处理完还是<class 'spconv.SparseConvTensor'> 特征经过1x3 3x1 和 3x1 1x3两路卷积处理相加
+        down1c, down1b = self.resBlock2(ret)  # 特征直连和pool完的特征接着降采样
+        # print(down1c.features.shape)  # down了1/4
+        # print(down1b.features.shape)
         down2c, down2b = self.resBlock3(down1c)
+        # print(down2c.features.shape)  # 点数又少很多，特征维度多了一倍128
+        # print(down2b.features.shape)  # 特征维度多了一倍128
         down3c, down3b = self.resBlock4(down2c)
+        # print(down3c.features.shape)  # 点数又少很多，特征维度多了一倍256
+        # print(down3b.features.shape)  # 特征维度多了一倍256
         down4c, down4b = self.resBlock5(down3c)
+        # print(down4c.features.shape)  # 点数又少很多，特征维度多了一倍512
+        # print(down4b.features.shape)  # 特征维度多了一倍512
 
         up4e = self.upBlock0(down4c, down4b)
         up3e = self.upBlock1(up4e, down3b)
         up2e = self.upBlock2(up3e, down2b)
         up1e = self.upBlock3(up2e, down1b)
 
-        up0e = self.ReconNet(up1e)
+        up0e = self.ReconNet(up1e)  # DDCM 
 
         up0e.features = torch.cat((up0e.features, up1e.features), 1)
 
