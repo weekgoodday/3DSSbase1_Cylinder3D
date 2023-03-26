@@ -56,7 +56,7 @@ class cylinder_fea(nn.Module):
         # 总之，第一个类输入两个list[tensor([N1,9]),tensor([N2,9])]； list[tensor([N1,3]),tensor([N2,3])]
         # 输出两个tensor unq[m,4]代表了独特m个点的位置和batch； processed_pooled_data[m,16]对应压缩后的16维特征
         cur_dev = pt_fea[0].get_device()
-        print("should be [n,9]",pt_fea[0].shape)  # yes [N,9]
+        # print("should be [n,9]",pt_fea[0].shape)  # yes [N,9]
         # concate everything
         cat_pt_ind = []
         for i_batch in range(len(xy_ind)):  # len(xy_ind)就是list的长度，即batchsize 2

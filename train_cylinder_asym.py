@@ -18,16 +18,19 @@ from config.config import load_config_data
 from utils.load_save_util import load_checkpoint
 import warnings
 import wandb
+import datetime
 warnings.filterwarnings("ignore")
-wandb_open=False
-if(wandb_open):
-    wandb.init(project="cylinder3d", name="trainc")
+    
 
 
 def main(args):
+    wandb_open=False
+    if args.name!=None:
+        wandb_open=True
+        wandb.init(project="cylinder3d", name=args.name)
     pytorch_device = torch.device('cuda:0')
 
-    config_path = args.config_path
+    config_path = args.config_path  # semantickitti.yaml
 
     configs = load_config_data(config_path)  # from yaml file load params
 
@@ -46,8 +49,9 @@ def main(args):
     ignore_label = dataset_config['ignore_label']
 
     model_load_path = train_hypers['model_load_path']
-    model_save_path = train_hypers['model_save_path']
-
+    # model_save_path = train_hypers['model_save_path']
+    model_save_path=os.path.expanduser("~") + '/logs/' +datetime.datetime.now().strftime("%Y-%-m-%d-%H:%M") + '/'
+    os.makedirs(model_save_path)
     SemKITTI_label_name = get_SemKITTI_label_name(dataset_config["label_mapping"])
     unique_label = np.asarray(sorted(list(SemKITTI_label_name.keys())))[1:] - 1
     unique_label_str = [SemKITTI_label_name[x] for x in unique_label + 1]
@@ -55,7 +59,6 @@ def main(args):
     my_model = model_builder.build(model_config)
     if os.path.exists(model_load_path):
         my_model = load_checkpoint(model_load_path, my_model)
-
     my_model.to(pytorch_device)
     optimizer = optim.Adam(my_model.parameters(), lr=train_hypers["learning_rate"])
 
@@ -73,7 +76,7 @@ def main(args):
     best_val_miou = 0
     my_model.train()
     global_iter = 0
-    check_iter = train_hypers['eval_every_n_steps']
+    # check_iter = train_hypers['eval_every_n_steps']  # 只是显示输出一下loss
     wandb_log = {}
     while epoch < train_hypers['max_num_epochs']:
         loss_list = []
@@ -118,12 +121,12 @@ def main(args):
             optimizer.zero_grad()
             pbar.update(1)
             global_iter += 1
-            if global_iter % check_iter == 0:
-                if len(loss_list) > 0:
-                    print('epoch %d iter %5d, loss: %.3f\n' %
-                          (epoch, i_iter, np.mean(loss_list)))
-                else:
-                    print('loss error')
+            # if global_iter % check_iter == 0:
+            #     if len(loss_list) > 0:
+            #         print('epoch %d iter %5d, loss: %.3f\n' %
+            #               (epoch, i_iter, np.mean(loss_list)))
+            #     else:
+            #         print('loss error')
         pbar.close()
         epoch += 1
         wandb_log['loss'] = np.mean(loss_list)
@@ -170,7 +173,7 @@ def main(args):
         # save model if performance is improved
         if best_val_miou < val_miou:
             best_val_miou = val_miou
-            torch.save(my_model.state_dict(), model_save_path)
+            torch.save(my_model.state_dict(), model_save_path+f"cylinder_val_{epoch}.pt")
 
         print('Current val miou is %.3f while the best val miou is %.3f' %
               (val_miou, best_val_miou))
@@ -186,8 +189,14 @@ if __name__ == '__main__':
     # Training settings
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('-y', '--config_path', default='/home/zht/github_play/3DSSbase1/config/semantickitti.yaml')
+    parser.add_argument(
+        "--name",
+        type=str,
+        default=None,
+        help="if None, not start wandb, else create with this name"
+    )
     args = parser.parse_args()
 
-    print(' '.join(sys.argv))
-    print(args)
+    # print(' '.join(sys.argv))
+    # print(args)
     main(args)

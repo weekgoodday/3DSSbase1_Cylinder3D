@@ -1,2 +1,13 @@
 在Cylinder3D 2020版的基础上直接修改
-最终阴差阳错，在hsc的帮助下配好了base环境，python3.9 pytorch 1.10.0_cu113 torchscatter去官网找的适配的2.0.9 torchvision 0.11.0+cu113 应该在zzy服务器下载了cudatoolkit cudnn 注意pytorch的cudatoolkit是不完整的，见https://blog.csdn.net/qq_41094058/article/details/116207333
+一次只用一个GPU，加入wandb，正式训练运行方式：
+conda activate cylinder3d
+cd /home/zht/github_play/3DSSbase1
+CUDA_VISIBLE_DEVICES=0 python train_cylinder_asym.py --name train0-3
+（--name参数可选，加入后会开启以name命名的wandb projects）
+预训练模型保存在/home/zht/github_play/3DSSbase1/model_load_dir/
+训练完模型保存在/home/zht/logs/时间戳/...
+
+测试运行方式：
+conda activate cylinder3d
+cd /home/zht/github_play/3DSSbase1
+python demo_folder.py

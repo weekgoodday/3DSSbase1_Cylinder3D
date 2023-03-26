@@ -62,7 +62,7 @@ class ResContextBlock(nn.Module):
         self.act3 = nn.LeakyReLU()
         self.bn2 = nn.BatchNorm1d(out_filters)
 
-        self.weight_initialization()
+        # self.weight_initialization()
 
     def weight_initialization(self):
         for m in self.modules():
@@ -124,7 +124,7 @@ class ResBlock(nn.Module):
             else:
                 self.pool = spconv.SparseConv3d(out_filters, out_filters, kernel_size=3, stride=(2, 2, 1),
                                                 padding=1, indice_key=indice_key, bias=False)
-        self.weight_initialization()
+        # self.weight_initialization()
 
     def weight_initialization(self):
         for m in self.modules():
@@ -182,7 +182,7 @@ class UpBlock(nn.Module):
         self.up_subm = spconv.SparseInverseConv3d(out_filters, out_filters, kernel_size=3, indice_key=up_key,
                                                   bias=False)
 
-        self.weight_initialization()  #这里的初始化竟然只是weight全1 bias全0
+        # self.weight_initialization()  #这里的初始化竟然只是weight全1 bias全0
 
     def weight_initialization(self):
         for m in self.modules():
@@ -191,27 +191,28 @@ class UpBlock(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def forward(self, x, skip):
+        #print("input shape,",x.features.shape) #最小点数,512
         upA = self.trans_dilao(x)  # conv3x3
         upA.features = self.trans_act(upA.features)
         upA.features = self.trans_bn(upA.features)
-
+        #print("UPA shape,",upA.features.shape) #点数没变
         ## upsample
         upA = self.up_subm(upA)  # 可以想象和inverseconv一个原理
-
+        #print("UPA shape,",upA.features.shape) #上采样 更大点数,512
         upA.features = upA.features + skip.features  # 上采样后加直连的特征
 
         upE = self.conv1(upA)  # conv1x3
         upE.features = self.act1(upE.features)
         upE.features = self.bn1(upE.features)
-
+        #print("upE shape,",upE.features.shape)
         upE = self.conv2(upE)  # conv3x1
         upE.features = self.act2(upE.features)
         upE.features = self.bn2(upE.features)
-
+        #print("upE shape,",upE.features.shape)
         upE = self.conv3(upE)  # conv3x3
         upE.features = self.act3(upE.features)
         upE.features = self.bn3(upE.features)
-
+        #print("upE shape,",upE.features.shape)
         return upE
 
 

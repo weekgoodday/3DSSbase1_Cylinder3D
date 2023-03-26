@@ -83,7 +83,9 @@ def main(args):
     my_model = model_builder.build(model_config)
     if os.path.exists(model_load_path):
         my_model = load_checkpoint(model_load_path, my_model)
-
+    # with open("/home/zht/output_file/cylindermodelstructure.txt","w") as f:
+    #     for child in my_model.named_modules():
+    #         print(child,file=f)
     my_model.to(pytorch_device)
     optimizer = optim.Adam(my_model.parameters(), lr=train_hypers["learning_rate"])
 
